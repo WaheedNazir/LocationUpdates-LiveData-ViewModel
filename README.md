@@ -3,7 +3,7 @@ Location updates using LiveData, ViewModel, Fused Location APi in Kotlin.
 
 
 ### Demo
-<img height="500px" src="https://github.com/WaheedNazir/LocationUpdates-LiveData-ViewModel/blob/master/images/sample_demo.gif" />
+<img height="400px" src="https://github.com/WaheedNazir/LocationUpdates-LiveData-ViewModel/blob/master/images/sample_demo.gif" />
 
 
 ### Other samples of MVVM using Kotlin
