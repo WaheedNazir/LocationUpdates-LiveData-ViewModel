@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -24,7 +23,6 @@ import kotlinx.android.synthetic.main.main_activity.*
 /**
  * Constants Values
  */
-const val LOCATION_REQUEST = 100
 const val LOCATION_PERMISSION_REQUEST = 101
 
 
@@ -36,6 +34,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var locationViewModel: LocationViewModel
     private var isGPSEnabled = false
 
+    private val locationPermissions = arrayOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    )
 
     /**
      * onCreate of activity
@@ -89,7 +91,7 @@ class MainActivity : AppCompatActivity() {
                 info.text = getString(R.string.enable_gps)
             }
 
-            isPermissionsGranted() -> {
+            isLocationPermissionsGranted() -> {
                 observeLocationUpdates()
             }
             else -> {
@@ -101,15 +103,10 @@ class MainActivity : AppCompatActivity() {
     /**
      * Check the availability of location permissions
      */
-    private fun isPermissionsGranted() =
-        ActivityCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED &&
-                ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
+    private fun isLocationPermissionsGranted(): Boolean {
+        return (EzPermission.isGranted(this, locationPermissions[0])
+                && EzPermission.isGranted(this, locationPermissions[1]))
+    }
 
     /**
      *
@@ -117,49 +114,74 @@ class MainActivity : AppCompatActivity() {
     private fun askLocationPermission() {
         EzPermission
             .with(this)
-            .permissions(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
+            .permissions(locationPermissions[0], locationPermissions[1])
             .request { granted, denied, permanentlyDenied ->
-                if (granted.contains(Manifest.permission.ACCESS_FINE_LOCATION) &&
-                    granted.contains(Manifest.permission.ACCESS_COARSE_LOCATION)
+                if (granted.contains(locationPermissions[0]) &&
+                    granted.contains(locationPermissions[1])
                 ) { // Granted
                     startLocationUpdates()
 
-                } else if (denied.contains(Manifest.permission.ACCESS_FINE_LOCATION) ||
-                    denied.contains(Manifest.permission.ACCESS_COARSE_LOCATION)
+                } else if (denied.contains(locationPermissions[0]) ||
+                    denied.contains(locationPermissions[1])
                 ) { // Denied
 
-                    val dialog = AlertDialog.Builder(this)
-                    dialog.setTitle("Location Permission Denied")
-                    dialog.setMessage("The app will not work without providing location permission. Allow permission ?")
-                    dialog.setNegativeButton("Cancel") { _, _ -> }
-                    dialog.setPositiveButton("Allow") { _, _ ->
-                        askLocationPermission()
-                    }
-                    dialog.setOnCancelListener { } //important
-                    dialog.show()
+                    showDeniedDialog()
 
-                } else if (permanentlyDenied.contains(Manifest.permission.ACCESS_FINE_LOCATION) ||
-                    permanentlyDenied.contains(Manifest.permission.ACCESS_COARSE_LOCATION)
+                } else if (permanentlyDenied.contains(locationPermissions[0]) ||
+                    permanentlyDenied.contains(locationPermissions[1])
                 ) { // Permanently denied
-                    val dialog = AlertDialog.Builder(this)
-                    dialog.setTitle("Location Permission Permanently Denied")
-                    dialog.setMessage("The app will not work without providing location permission.\n\n Open App settings -> Permissions -> Allow permission.")
-                    dialog.setNegativeButton("Not now") { _, _ -> }
-                    dialog.setPositiveButton("Settings") { _, _ ->
-                        startActivity(
-                            EzPermission.appDetailSettingsIntent(
-                                this
-                            )
-                        )
-                    }
-                    dialog.setOnCancelListener { } //important
-                    dialog.show()
+                    showPermanentlyDeniedDialog()
                 }
 
             }
+    }
+
+    /**
+     *
+     */
+    private fun showPermanentlyDeniedDialog() {
+        val dialog = AlertDialog.Builder(this)
+        dialog.setTitle(getString(R.string.title_permission_permanently_denied))
+        dialog.setMessage(getString(R.string.message_permission_permanently_denied))
+        dialog.setNegativeButton(getString(R.string.not_now)) { _, _ -> }
+        dialog.setPositiveButton(getString(R.string.settings)) { _, _ ->
+            startActivity(
+                EzPermission.appDetailSettingsIntent(
+                    this
+                )
+            )
+        }
+        dialog.setOnCancelListener { } //important
+        dialog.show()
+    }
+
+
+    /**
+     *
+     */
+    private fun showDeniedDialog() {
+        val dialog = AlertDialog.Builder(this)
+        dialog.setTitle(getString(R.string.title_permission_denied))
+        dialog.setMessage(getString(R.string.message_permission_denied))
+        dialog.setNegativeButton(getString(R.string.cancel)) { _, _ -> }
+        dialog.setPositiveButton(getString(R.string.allow)) { _, _ ->
+            askLocationPermission()
+        }
+        dialog.setOnCancelListener { } //important
+        dialog.show()
+    }
+
+    /**
+     * On Activity Result for locations permissions updates
+     */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == Activity.RESULT_OK) {
+            if (requestCode == LOCATION_PERMISSION_REQUEST) {
+                isGPSEnabled = true
+                startLocationUpdates()
+            }
+        }
     }
 
 }
